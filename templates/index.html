@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Land Compensation Support OCR</title>
+<style>
+  body { font-family: system-ui, sans-serif; background: #0f172a; color: #e5e7eb; padding: 24px; }
+  .container { max-width: 980px; margin: 0 auto; }
+  header { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
+  header h1 { font-size: 22px; margin: 0; }
+  .sub { color: #9ca3af; font-size: 14px; margin-top: 6px; }
+  button { background: #22d3ee; color: #000; border: none; padding: 8px 16px; cursor: pointer; border-radius: 6px; }
+  #compForm { background: rgba(17,24,39,0.85); border-radius: 14px; border: 1px solid #1f2937; padding: 16px; margin-top: 30px; }
+  form label { display: block; margin: 10px 0 6px 0;}
+  form input { padding: 6px; margin-left: 10px;}
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>Land Compensation Support System</h1>
+  </header>
+  <p class="sub">Upload your land acquisition notice to extract, compare, and plan for justice.</p>
+  
+  <input type="file" id="fileInput" />
+  <button onclick="uploadFile()">Upload</button>
+  
+  <div id="result" style="margin-top:24px;"></div>
+  
+  <div id="compForm" style="display:none;">
+    <h2>Fill/Review Details for Market Estimate</h2>
+    <form id="marketForm">
+      <label>Survey Number: <input type="text" id="survey_number"></label>
+      <label>Public Usage: <input type="text" id="public_usage"></label>
+      <label>Families Affected: <input type="number" id="families_affected" min="0"></label>
+      <label>Other Properties: <input type="text" id="other_properties"></label>
+      <label>Rehab Plan: <input type="text" id="rehab_plan"></label>
+      <label>Estimated Cost: <input type="number" id="estimated_cost" min="0" step="0.01"></label>
+      <label>Land Area (acres): <input type="number" id="landArea" step="0.01"></label>
+      <label>Acquisition Year: <input type="number" id="acqYear"></label>
+      <label>District/Village: <input type="text" id="location"></label>
+      <label>Received Compensation (INR): <input type="text" id="received"></label>
+      <button type="button" onclick="getTodayValue()">Get Today's Market Value & Steps</button>
+    </form>
+    <div id="marketResult" style="margin-top:18px;"></div>
+  </div>
+</div>
+
+<script>
+async function uploadFile() {
+  const fileInput = document.getElementById('fileInput');
+  if (!fileInput.files.length) {
+    alert('Please select a file!');
+    return;
+  }
+  const file = fileInput.files[0];
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const response = await fetch('/upload', { method: 'POST', body: formData });
+  const data = await response.json();
+
+  if (response.ok) {
+    const res = data.extracted_data;
+    const classification = data.classification;
+    const fairnessMsg = data.message;
+    const fairAmount = data.fair_compensation;
+    const compReceived = data.compensation_received;
+    const isFair = data.is_fair_compensation ? "Fair" : "Unfair";
+    document.getElementById('result').innerHTML = `
+      <h2>Extracted Data</h2>
+      <pre>${JSON.stringify(res, null, 2)}</pre>
+      <h3>Document Classification: ${classification}</h3>
+      <h3>Compensation Received: ₹${parseFloat(compReceived.replace(/[^\d.]/g, '')||'0').toLocaleString('en-IN')}</h3>
+      <h3>Fair Compensation Estimate: ₹${parseFloat(fairAmount||'0').toLocaleString('en-IN')}</h3>
+      <h3>Compensation Status: ${isFair}</h3>
+      <p><b>Note:</b> ${fairnessMsg}</p>
+    `;
+    // Autofill market form fields (+ extra fields)
+    document.getElementById('compForm').style.display = "";
+    document.getElementById('landArea').value = (res.land_area ? parseFloat(res.land_area.replace(/[^\d.]/g, '')) : "");
+    document.getElementById('received').value = (compReceived ? parseFloat(compReceived.replace(/[^\d.]/g, '')) : "");
+    document.getElementById('acqYear').value = (res.date ? (res.date.split('-')[2] || new Date().getFullYear()) : new Date().getFullYear());
+    document.getElementById('location').value = res.village || res.district || '';
+    document.getElementById('survey_number').value = res.survey_number || '';
+    document.getElementById('public_usage').value = res.public_usage || '';
+    document.getElementById('families_affected').value = res.families_affected || '';
+    document.getElementById('other_properties').value = res.other_properties || '';
+    document.getElementById('rehab_plan').value = res.rehab_plan || '';
+    document.getElementById('estimated_cost').value = res.estimated_cost || '';
+  } else {
+    alert(data.error || 'Upload failed.');
+  }
+}
+
+async function getTodayValue() {
+  const marketPayload = {
+    landArea: document.getElementById('landArea').value || 0,
+    acqYear: document.getElementById('acqYear').value || new Date().getFullYear(),
+    location: document.getElementById('location').value,
+    received: document.getElementById('received').value || 0,
+    survey_number: document.getElementById('survey_number').value,
+    public_usage: document.getElementById('public_usage').value,
+    families_affected: document.getElementById('families_affected').value,
+    other_properties: document.getElementById('other_properties').value,
+    rehab_plan: document.getElementById('rehab_plan').value,
+    estimated_cost: document.getElementById('estimated_cost').value
+  };
+  const response = await fetch('/get_market_value', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(marketPayload)
+  });
+  const data = await response.json();
+  document.getElementById('marketResult').innerHTML =
+    `<b>Today's Market Value:</b> ₹${data.market_value}<br/>
+     <b>Estimated Compensation Gap:</b> ₹${data.compensation_gap}<br/>
+     <b>Amount Still Owed:</b> ₹${data.amount_still_owed}<br/>
+     <b>Suggestion:</b> ${data.suggestion}<br/><br/>
+     <img src="data:image/png;base64,${data.chart}" alt="Compensation Chart" style="max-width:400px; border-radius:12px;"/>`;
+}
+</script>
+</body>
+</html>

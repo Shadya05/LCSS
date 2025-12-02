@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Compensation Dashboard</title>
+<style>
+  body { font-family: Arial, sans-serif; background: #f9f9f9; margin: 0; padding: 20px; }
+  h1, h2 { text-align: center; color: #333; }
+  .charts { display: flex; justify-content: center; flex-wrap: wrap; gap: 20px; margin-top: 30px; }
+  .chart { background: #fff; border-radius: 10px; padding: 20px; box-shadow: 0 0 10px rgba(0,0,0,0.1); width: 400px; text-align: center; }
+  .chart img { max-width: 100%; border-radius: 8px; }
+</style>
+</head>
+<body>
+<h1>Land Compensation Impact Dashboard</h1>
+<div class="charts">
+  <div class="chart">
+    <h3>Land Usage Distribution</h3>
+    <img src="{{ img1 }}" alt="Land Usage Chart" />
+  </div>
+  <div class="chart">
+    <h3>Families Affected per Survey</h3>
+    <img src="{{ img2 }}" alt="Families Affected Chart" />
+  </div>
+  <div class="chart">
+    <h3>Document Classification Counts</h3>
+    <img src="{{ img3 }}" alt="Classification Chart" />
+  </div>
+</div>
+</body>
+</html>
